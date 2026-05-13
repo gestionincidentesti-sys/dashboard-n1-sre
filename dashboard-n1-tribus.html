@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard N1 — Inteligencia Operacional</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f5f7f6;--surface:#ffffff;--surface2:#f0f4f2;--border:#d4ddd8;--primary:#006341;--primary-dim:#e8f5ee;--accent:#C5A028;--danger:#c0392b;--warning:#e67e22;--text:#1a2e25;--muted:#5a7068;--radius:10px}
+        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        .app{display:grid;grid-template-rows:auto 1fr;min-height:100vh}
+        .topbar{background:#006341;border-bottom:3px solid #C5A028;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+        .topbar h1{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;color:#fff}
+        .topbar h1 span{color:#C5A028}
+        .status-dot{width:8px;height:8px;border-radius:50%;background:#C5A028;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        .status-offline .status-dot{background:var(--danger);animation:none}
+        .main{padding:20px;overflow-y:auto}
+        .grid-layout{display:grid;grid-template-columns:1fr;gap:16px;max-width:1400px;margin:0 auto}
+
+        /* TRIBU CARDS */
+        .tribu-section{background:var(--surface);border-radius:var(--radius);padding:18px;border:1px solid var(--border)}
+        .tribu-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+        .tribu-header h2{font-size:.9rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+        .tribu-actions{display:flex;gap:6px;align-items:center}
+        .tribu-actions input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:.75rem;width:150px}
+        .tribu-actions input::placeholder{color:var(--muted)}
+        .tribu-actions button{background:var(--primary);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:.72rem;cursor:pointer;font-weight:600}
+        .tribu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+        .tribu-card{background:var(--surface2);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border);cursor:pointer;transition:all .2s;position:relative}
+        .tribu-card:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 4px 20px rgba(79,140,255,.15)}
+        .tribu-card.active{border-color:var(--primary);background:rgba(79,140,255,.08)}
+        .tribu-card .count{font-size:1.8rem;font-weight:800;color:var(--text);line-height:1}
+        .tribu-card .name{font-size:.72rem;color:var(--muted);margin-top:4px;font-weight:500}
+        .tribu-card .remove{position:absolute;top:4px;right:6px;background:none;border:none;color:var(--danger);font-size:.9rem;cursor:pointer;opacity:0;transition:opacity .2s}
+        .tribu-card:hover .remove{opacity:1}
+        .tribu-card .squad-info{font-size:.65rem;color:var(--primary);margin-top:3px}
+
+        /* STATS */
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+        .stat-card{background:var(--surface);border-radius:var(--radius);padding:16px;text-align:center;border:1px solid var(--border)}
+        .stat-card .val{font-size:1.6rem;font-weight:800}
+        .stat-card .lbl{font-size:.68rem;color:var(--muted);margin-top:2px;text-transform:uppercase}
+        .stat-card.primary .val{color:var(--primary)}
+        .stat-card.danger .val{color:var(--danger)}
+        .stat-card.warning .val{color:var(--warning)}
+        .stat-card.accent .val{color:var(--accent)}
+
+        /* FILTERS */
+        .filters-bar{background:var(--surface);border-radius:var(--radius);padding:14px 18px;border:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+        .filter-item{display:flex;flex-direction:column;gap:3px}
+        .filter-item label{font-size:.65rem;color:var(--muted);text-transform:uppercase;font-weight:600}
+        .filter-item select{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:.8rem;min-width:150px}
+        .btn-refresh{background:var(--primary);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .2s}
+        .btn-refresh:hover{background:#3a7aee}
+        .btn-refresh:disabled{background:var(--surface2);color:var(--muted);cursor:not-allowed}
+
+        /* TABLE */
+        .table-section{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden}
+        .table-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+        .table-header h3{font-size:.9rem;font-weight:600}
+        .table-header .count-badge{background:var(--primary-dim);color:var(--primary);padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600}
+        .issues-table{width:100%;border-collapse:collapse}
+        .issues-table th{padding:10px 14px;text-align:left;font-size:.68rem;text-transform:uppercase;color:var(--muted);background:var(--surface2);border-bottom:1px solid var(--border);font-weight:600}
+        .issues-table td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.8rem}
+        .issues-table tr:hover{background:rgba(79,140,255,.04)}
+        .issues-table a{color:var(--primary);text-decoration:none;font-weight:600}
+        .issues-table a:hover{text-decoration:underline}
+        .badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:.65rem;font-weight:700}
+        .badge-pending{background:rgba(255,184,77,.15);color:var(--warning)}
+        .badge-progress{background:rgba(79,140,255,.15);color:var(--primary)}
+        .badge-waiting{background:rgba(255,92,92,.15);color:var(--danger)}
+        .badge-escalated{background:rgba(168,85,247,.15);color:#a855f7}
+        .badge-high{background:rgba(255,92,92,.12);color:var(--danger)}
+        .badge-medium{background:rgba(255,184,77,.12);color:var(--warning)}
+        .badge-tribu{background:rgba(0,212,170,.12);color:var(--accent)}
+
+        /* DOCS */
+        .docs-section{background:var(--surface);border-radius:var(--radius);padding:18px;border:1px solid var(--border);border-left:3px solid var(--accent)}
+        .docs-section h3{font-size:.85rem;font-weight:600;color:var(--accent);margin-bottom:12px}
+        .doc-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.78rem}
+        .doc-item:last-child{border:none}
+        .doc-item a{color:var(--primary);text-decoration:none}
+        .doc-item a:hover{text-decoration:underline}
+        .doc-tag{padding:2px 7px;border-radius:3px;font-size:.62rem;font-weight:700}
+        .tag-hogar{background:rgba(0,212,170,.12);color:var(--accent)}
+        .tag-arrendamiento{background:rgba(255,184,77,.12);color:var(--warning)}
+        .tag-empresas{background:rgba(79,140,255,.12);color:var(--primary)}
+        .tag-general{background:rgba(139,146,165,.12);color:var(--muted)}
+
+        /* LOADING & ERROR */
+        .loading{text-align:center;padding:40px;color:var(--muted)}
+        .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .error-box{background:rgba(255,92,92,.08);border:1px solid rgba(255,92,92,.3);border-radius:10px;padding:16px;margin:10px 14px}
+        .error-box strong{color:var(--danger)}
+        .error-box a{color:var(--primary);font-weight:600}
+        .empty{text-align:center;padding:30px;color:var(--muted);font-size:.85rem}
+
+        .jira-link{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:var(--primary-dim);color:var(--primary);border-radius:6px;text-decoration:none;font-size:.72rem;font-weight:600;transition:background .2s}
+        .jira-link:hover{background:rgba(79,140,255,.25)}
+    </style>
+</head>
+<body>
+<div class="app">
+
+<div class="topbar">
+    <h1>📋 <span>Dashboard N1</span> — Inteligencia Operacional</h1>
+    <div style="display:flex;align-items:center;gap:12px">
+        <div class="status-dot" id="statusDot"></div>
+        <span style="font-size:.75rem;color:rgba(255,255,255,.8)" id="statusText">Conectando...</span>
+        <span style="font-size:.7rem;color:rgba(255,255,255,.6)" id="lastUpdate"></span>
+    </div>
+</div>
+
+<div class="main">
+<div class="grid-layout">
+
+    <!-- STATS -->
+    <div class="stats-row">
+        <div class="stat-card primary"><div class="val" id="totalTickets">—</div><div class="lbl">Total Abiertos</div></div>
+        <div class="stat-card danger"><div class="val" id="highPriority">—</div><div class="lbl">Alta Prioridad</div></div>
+        <div class="stat-card warning"><div class="val" id="pendingTickets">—</div><div class="lbl">Pendientes</div></div>
+        <div class="stat-card accent"><div class="val" id="escalatedTickets">—</div><div class="lbl">Escalados</div></div>
+    </div>
+
+    <!-- TRIBU / SQUAD -->
+    <div class="tribu-section">
+        <div class="tribu-header">
+            <h2>📊 Casos por Tribu / Squad</h2>
+            <div class="tribu-actions">
+                <input type="text" id="addTribuInput" placeholder="Nueva tribu o squad...">
+                <button onclick="addTribuCard()">+ Agregar</button>
+                <a href="https://jirasegurosbolivar.atlassian.net/jira/dashboards/31759?maximized=139079" target="_blank" class="jira-link">Tablero Jira →</a>
+            </div>
+        </div>
+        <div class="tribu-grid" id="tribuGrid"></div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filters-bar">
+        <div class="filter-item">
+            <label>Tribu (seleccionar arriba o aquí)</label>
+            <select id="filterTribu" onchange="fetchIssues()">
+                <option value="">Todas las tribus</option>
+                <option value="Servicio, Operaciones y Canales">Servicio, Operaciones y Canales</option>
+                <option value="Vivienda">Vivienda</option>
+                <option value="Empresas">Empresas</option>
+                <option value="COREX">COREX</option>
+                <option value="ARL">ARL</option>
+                <option value="Bienestar">Bienestar</option>
+                <option value="Bancaseguros y Negocios Digitales">Bancaseguros y Negocios Digitales</option>
+                <option value="Servicios Bolívar, Servicios Bolívar Facilities y El Libertador">Servicios Bolívar</option>
+                <option value="Areas Corporativas">Areas Corporativas</option>
+                <option value="Movilidad">Movilidad</option>
+            </select>
+            <div style="display:flex;gap:4px;margin-top:4px">
+                <input type="text" id="addSquadInput" placeholder="+ Squad" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:.7rem;width:100px">
+                <button onclick="addSelectOption('filterTribu','addSquadInput')" style="background:var(--primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:.65rem;cursor:pointer">+</button>
+            </div>
+        </div>
+        <div class="filter-item">
+            <label>Estado</label>
+            <select id="filterEstado" onchange="fetchIssues()">
+                <option value="">Todos abiertos</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="Trabajo en progreso">En progreso</option>
+                <option value="Esperando por ayuda">Esperando ayuda</option>
+                <option value="Escalado">Escalado</option>
+            </select>
+            <div style="display:flex;gap:4px;margin-top:4px">
+                <input type="text" id="addEstadoInput" placeholder="+ Estado" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:.7rem;width:100px">
+                <button onclick="addSelectOption('filterEstado','addEstadoInput')" style="background:var(--primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:.65rem;cursor:pointer">+</button>
+            </div>
+        </div>
+        <div class="filter-item">
+            <label>Especialista N1</label>
+            <select id="filterAsignado" onchange="fetchIssues()">
+                <option value="">Todos</option>
+                <option value="Bryan Alejandro Romero Torres">Bryan Romero</option>
+                <option value="Cesar Armando Heredia Londono">Cesar Heredia</option>
+                <option value="Juan Camilo Arias Pinto">Juan C. Arias</option>
+                <option value="Brayan Andrés Cárdenas Rodríguez">Brayan Cárdenas</option>
+                <option value="Eimy Fahyzari Osorio Garzon">Eimy Osorio</option>
+                <option value="Julio Cesar Franco Castro">Julio Franco</option>
+            </select>
+            <div style="display:flex;gap:4px;margin-top:4px">
+                <input type="text" id="addN1Input" placeholder="+ Especialista" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:.7rem;width:100px">
+                <button onclick="addSelectOption('filterAsignado','addN1Input')" style="background:var(--primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:.65rem;cursor:pointer">+</button>
+            </div>
+        </div>
+        <div class="filter-item" style="align-self:center">
+            <button class="btn-refresh" id="btnFetch" onclick="fetchIssues()">
+                <span>🔄</span> Actualizar
+            </button>
+            <button onclick="removeSelectedOption()" style="background:var(--danger);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:.72rem;cursor:pointer;margin-top:4px;width:100%">🗑 Quitar seleccionado</button>
+        </div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="table-section">
+        <div class="table-header">
+            <h3>Tickets Asignados</h3>
+            <span class="count-badge" id="issuesCount">0 resultados</span>
+        </div>
+        <div id="issuesBody">
+            <div class="loading"><div class="spinner"></div><p style="margin-top:10px">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- DOCUMENTACIÓN -->
+    <div class="docs-section">
+        <h3>📖 Runbooks & Documentación</h3>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1729626147" target="_blank">Ajuste Comisión Póliza Hogar</a><span class="doc-tag tag-hogar">Hogar</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1651736577" target="_blank">Variación Cánones Arrendamiento</a><span class="doc-tag tag-arrendamiento">Arrendamiento</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1470857217" target="_blank">Base Renovaciones Arrendamiento</a><span class="doc-tag tag-arrendamiento">Arrendamiento</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1692631049" target="_blank">Desasociar Grupo Empresas Portal ARL</a><span class="doc-tag tag-empresas">Empresas</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/596377617" target="_blank">Cruce de Primas Cuotas al Día</a><span class="doc-tag tag-general">General</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/941490185" target="_blank">Documentación Producto 109</a><span class="doc-tag tag-hogar">Hogar</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/610730146" target="_blank">Playbook Post-mortem</a><span class="doc-tag tag-general">General</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/819167242" target="_blank">Liquidaciones de Siniestros</a><span class="doc-tag tag-general">General</span></div>
+    </div>
+
+</div>
+</div>
+</div>
+
+<script>
+const JIRA = {
+    base: 'https://jirasegurosbolivar.atlassian.net',
+    email: 'bryan.romero@segurosbolivar.com',
+    token: 'ATATT3xFfGF0IjR_h4E8_4kOdHAL7gjPnt_l-YOeEWtMI3jgvQHFNgY89yd3lvY2vOWSmMfundKyayyxsnLfG8FjNwiIOxG96T4AOy7gNw90iWtaLh4X3e4lrnTn0uQB72aRrm12pOlzD5P6hwklm-YppUI1-d-GH_h8HhIJ4eC0wRIoyj9t7Hg=A25B8C11'
+};
+
+// Tribu/Squad unificado (cascading) — igual que en Jira
+let activeTribus = [
+    {tribu:'Servicio, Operaciones y Canales', squad:null},
+    {tribu:'Vivienda', squad:null},
+    {tribu:'Empresas', squad:null},
+    {tribu:'COREX', squad:null},
+    {tribu:'ARL', squad:null},
+    {tribu:'Bienestar', squad:null},
+    {tribu:'Bancaseguros y Negocios Digitales', squad:null},
+    {tribu:'Servicios Bolívar, Servicios Bolívar Facilities y El Libertador', squad:null},
+    {tribu:'Areas Corporativas', squad:null},
+    {tribu:'Movilidad', squad:null}
+];
+
+function renderTribuCards() {
+    const grid = document.getElementById('tribuGrid');
+    grid.innerHTML = activeTribus.map((item, idx) => {
+        const label = item.squad ? `${item.tribu} → ${item.squad}` : item.tribu;
+        const id = `cnt-${idx}`;
+        return `<div class="tribu-card" onclick="filterByTribu('${item.tribu}','${item.squad||''}')" title="${label}">
+            <button class="remove" onclick="event.stopPropagation();removeTribu(${idx})">×</button>
+            <div class="count" id="${id}">—</div>
+            <div class="name">${item.tribu}</div>
+            ${item.squad ? `<div class="squad-info">${item.squad}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function addTribuCard() {
+    const input = document.getElementById('addTribuInput');
+    const val = input.value.trim();
+    if (!val) return;
+    // Soporta formato "Tribu > Squad" o solo "Tribu"
+    const parts = val.split('>').map(s => s.trim());
+    const tribu = parts[0];
+    const squad = parts[1] || null;
+    activeTribus.push({tribu, squad});
+    // Agregar al select
+    const select = document.getElementById('filterTribu');
+    if (![...select.options].some(o => o.value === tribu)) {
+        const opt = document.createElement('option');
+        opt.value = tribu; opt.textContent = tribu;
+        select.appendChild(opt);
+    }
+    renderTribuCards();
+    fetchTribuCounts();
+    input.value = '';
+}
+
+function removeTribu(idx) {
+    activeTribus.splice(idx, 1);
+    renderTribuCards();
+}
+
+// Agregar opción a cualquier select
+function addSelectOption(selectId, inputId) {
+    const input = document.getElementById(inputId);
+    const val = input.value.trim();
+    if (!val) return;
+    const select = document.getElementById(selectId);
+    // Verificar que no exista
+    if ([...select.options].some(o => o.value === val)) { input.value = ''; return; }
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = val;
+    select.appendChild(opt);
+    select.value = val; // Seleccionar el nuevo
+    input.value = '';
+    fetchIssues();
+}
+
+// Quitar la opción actualmente seleccionada del select activo
+function removeSelectedOption() {
+    const selects = ['filterTribu', 'filterEstado', 'filterAsignado'];
+    for (const id of selects) {
+        const select = document.getElementById(id);
+        if (select.value && select.selectedIndex > 0) {
+            select.remove(select.selectedIndex);
+            select.selectedIndex = 0;
+            fetchIssues();
+            return;
+        }
+    }
+    alert('Selecciona una opción en algún filtro para quitarla');
+}
+
+function filterByTribu(tribu, squad) {
+    // Sincronizar dropdown con la card seleccionada
+    const select = document.getElementById('filterTribu');
+    // Buscar si la tribu existe en el select
+    const exists = [...select.options].some(o => o.value === tribu);
+    if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = tribu; opt.textContent = tribu;
+        select.appendChild(opt);
+    }
+    select.value = tribu;
+    // Resaltar card activa
+    document.querySelectorAll('.tribu-card').forEach(c => c.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    fetchIssues();
+}
+
+function buildJQL() {
+    const tribu = document.getElementById('filterTribu').value;
+    const estado = document.getElementById('filterEstado').value;
+    const asignado = document.getElementById('filterAsignado').value;
+    let parts = ['project = MDSB'];
+    if (tribu) parts.push(`"Tribu / Squad" in cascadeOption("${tribu}")`);
+    if (estado) parts.push(`status = "${estado}"`);
+    else parts.push('status not in (Resuelto, Cerrado, Cancelado)');
+    if (asignado) parts.push(`assignee = "${asignado}"`);
+    parts.push('ORDER BY created DESC');
+    return parts.join(' AND ');
+}
+
+async function fetchIssuesWithJQL(jql) {
+    const btn = document.getElementById('btnFetch');
+    const body = document.getElementById('issuesBody');
+    btn.disabled = true;
+    body.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:10px">Consultando...</p></div>';
+    try {
+        const resp = await jiraFetch(`search?jql=${encodeURIComponent(jql)}&maxResults=30&fields=summary,status,assignee,priority,created,issuetype,customfield_27826`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        renderIssues(await resp.json());
+        setConnected(true);
+    } catch(err) {
+        setConnected(false);
+        body.innerHTML = `<div class="error-box"><strong>Error CORS</strong><br><a href="${JIRA.base}/issues/?jql=${encodeURIComponent(jql)}" target="_blank">→ Ver en Jira</a> | <code>node server.js</code></div>`;
+    }
+    btn.disabled = false;
+}
+
+function statusBadge(s) {
+    const m = {'Pendiente':'badge-pending','Trabajo en progreso':'badge-progress','Esperando por ayuda':'badge-waiting','Escalado':'badge-escalated'};
+    return `<span class="badge ${m[s]||'badge-pending'}">${s}</span>`;
+}
+function priorityBadge(p) {
+    if (!p) return '';
+    if (p.includes('Alta')||p.includes('High')) return `<span class="badge badge-high">Alta</span>`;
+    if (p.includes('Media')||p.includes('Medium')) return `<span class="badge badge-medium">Media</span>`;
+    return '';
+}
+
+async function jiraFetch(apiPath) {
+    const isLocal = window.location.hostname === 'localhost';
+    let url, headers;
+    
+    if (isLocal) {
+        // Proxy local
+        url = `/jira/${apiPath}`;
+        headers = {'Content-Type':'application/json'};
+    } else {
+        // Proxy CORS público — permite llamar a Jira desde cualquier origen
+        const jiraUrl = `${JIRA.base}/rest/api/2/${apiPath}`;
+        url = `https://corsproxy.io/?${encodeURIComponent(jiraUrl)}`;
+        headers = {
+            'Authorization': 'Basic ' + btoa(`${JIRA.email}:${JIRA.token}`),
+            'Content-Type': 'application/json',
+            'x-requested-with': 'XMLHttpRequest'
+        };
+    }
+    return fetch(url, {headers});
+}
+
+// === CACHÉ LOCAL (localStorage) ===
+const CACHE_PREFIX = 'dsb_n1_';
+function saveCache(key, data) { try { localStorage.setItem(CACHE_PREFIX+key, JSON.stringify({data,ts:Date.now()})); } catch(e){} }
+function loadCache(key) { try { const r=localStorage.getItem(CACHE_PREFIX+key); return r?JSON.parse(r):null; } catch(e){return null;} }
+function cacheAge(entry) { if(!entry)return''; const m=Math.round((Date.now()-entry.ts)/60000); return m<1?'<1 min':m<60?m+' min':Math.round(m/60)+'h'; }
+
+async function fetchIssues() {
+    const btn = document.getElementById('btnFetch');
+    const body = document.getElementById('issuesBody');
+    btn.disabled = true;
+
+    const jql = buildJQL();
+    const cKey = btoa(unescape(encodeURIComponent(jql))).substring(0,40);
+    const cached = loadCache(cKey);
+
+    // Mostrar caché mientras intenta conectar
+    if (cached) { renderIssues(cached.data); document.getElementById('lastUpdate').innerHTML = `<span style="color:var(--warning)">Caché: hace ${cacheAge(cached)}</span>`; }
+    else { body.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:10px">Consultando Jira...</p></div>'; }
+
+    try {
+        const resp = await jiraFetch(`search?jql=${encodeURIComponent(jql)}&maxResults=30&fields=summary,status,assignee,priority,created,issuetype,customfield_27826`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        saveCache(cKey, data);
+        renderIssues(data);
+        setConnected(true);
+        document.getElementById('lastUpdate').textContent = `Actualizado: ${new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+    } catch(err) {
+        setConnected(false);
+        if (!cached) {
+            const jiraLink = `${JIRA.base}/issues/?jql=${encodeURIComponent(jql)}`;
+            body.innerHTML = `<div class="error-box">
+                <strong>Sin conexión y sin caché</strong><br>
+                1. <a href="${jiraLink}" target="_blank">→ Ver en Jira</a><br>
+                2. <code>node server.js</code> → <code>http://localhost:3000</code> (carga caché)
+            </div>`;
+        }
+    }
+    btn.disabled = false;
+}
+
+function renderIssues(data) {
+    const issues = data.issues || [];
+    const total = data.total || issues.length;
+    document.getElementById('totalTickets').textContent = total;
+    document.getElementById('highPriority').textContent = issues.filter(i=>i.fields.priority&&(i.fields.priority.name.includes('Alta')||i.fields.priority.name.includes('High'))).length;
+    document.getElementById('pendingTickets').textContent = issues.filter(i=>i.fields.status.name==='Pendiente').length;
+    document.getElementById('escalatedTickets').textContent = issues.filter(i=>i.fields.status.name==='Escalado').length;
+    document.getElementById('issuesCount').textContent = `${issues.length} de ${total}`;
+
+    if (issues.length === 0) {
+        document.getElementById('issuesBody').innerHTML = '<div class="empty">Sin tickets para los filtros seleccionados</div>';
+        return;
+    }
+
+    let html = `<table class="issues-table"><thead><tr><th>Caso</th><th>Resumen</th><th>Tribu / Squad</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha</th></tr></thead><tbody>`;
+    issues.forEach(i => {
+        const f = i.fields;
+        const created = new Date(f.created).toLocaleDateString('es-CO',{day:'2-digit',month:'short'});
+        const assignee = f.assignee ? f.assignee.displayName.split(' ').slice(0,2).join(' ') : '—';
+        const summary = f.summary.length > 55 ? f.summary.substring(0,55)+'…' : f.summary;
+        let tribuSquad = '—';
+        if (f.customfield_27826) {
+            const parent = f.customfield_27826.value || '';
+            const child = f.customfield_27826.child ? f.customfield_27826.child.value : '';
+            tribuSquad = child ? `<span class="badge badge-tribu">${parent} → ${child}</span>` : `<span class="badge badge-tribu">${parent}</span>`;
+        }
+        html += `<tr>
+            <td><a href="${JIRA.base}/browse/${i.key}" target="_blank">${i.key}</a></td>
+            <td title="${f.summary}">${summary}</td>
+            <td>${tribuSquad}</td>
+            <td>${statusBadge(f.status.name)}</td>
+            <td>${priorityBadge(f.priority?f.priority.name:'')}</td>
+            <td style="font-size:.75rem;color:var(--muted)">${assignee}</td>
+            <td style="font-size:.72rem;color:var(--muted)">${created}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    if (total > 30) html += `<div style="padding:12px;text-align:center"><a href="${JIRA.base}/issues/?jql=${encodeURIComponent(buildJQL())}" target="_blank" class="jira-link">Ver ${total} resultados en Jira →</a></div>`;
+    document.getElementById('issuesBody').innerHTML = html;
+}
+
+async function fetchTribuCounts() {
+    for (let idx = 0; idx < activeTribus.length; idx++) {
+        const item = activeTribus[idx];
+        const jqlTribu = item.squad
+            ? `"Tribu / Squad" in cascadeOption("${item.tribu}","${item.squad}")`
+            : `"Tribu / Squad" in cascadeOption("${item.tribu}")`;
+        const jql = `project = MDSB AND ${jqlTribu} AND status not in (Resuelto, Cerrado, Cancelado)`;
+        try {
+            const resp = await jiraFetch(`search?jql=${encodeURIComponent(jql)}&maxResults=0`);
+            if (resp.ok) {
+                const data = await resp.json();
+                const el = document.getElementById(`cnt-${idx}`);
+                if (el) el.textContent = data.total || 0;
+            }
+        } catch(e) { /* silencioso */ }
+    }
+}
+
+function setConnected(connected) {
+    const dot = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    if (connected) {
+        dot.style.background = 'var(--accent)';
+        text.textContent = 'Conectado';
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    } else {
+        dot.style.background = 'var(--danger)';
+        dot.style.animation = 'none';
+        text.textContent = 'Desconectado (CORS)';
+    }
+}
+
+window.onload = () => {
+    renderTribuCards();
+    fetchIssues();
+    fetchTribuCounts();
+};
+</script>
+</body>
+</html>
