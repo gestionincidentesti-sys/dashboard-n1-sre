@@ -44,7 +44,7 @@ function isOriginAllowed(origin) {
 
 // Solo permitir rutas de API de Jira de lectura (search, issue, field)
 function isPathAllowed(jiraPath) {
-    const allowed = ['/rest/api/2/search', '/rest/api/2/issue/', '/rest/api/2/field'];
+    const allowed = ['/rest/api/3/search', '/rest/api/3/issue/', '/rest/api/3/field', '/rest/api/2/search', '/rest/api/2/issue/', '/rest/api/2/field'];
     return allowed.some(p => jiraPath.startsWith(p));
 }
 
@@ -104,7 +104,7 @@ const server = http.createServer((req, res) => {
 
     // Proxy a Jira API (SOLO LECTURA)
     if (req.url.startsWith('/jira/')) {
-        const jiraPath = req.url.replace('/jira/', '/rest/api/2/');
+        const jiraPath = req.url.replace('/jira/', '/rest/api/3/');
 
         // Validar que la ruta sea permitida
         if (!isPathAllowed(jiraPath)) {
