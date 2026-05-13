@@ -228,8 +228,9 @@
 <script>
 const JIRA = {
     base: 'https://jirasegurosbolivar.atlassian.net',
-    email: 'bryan.romero@segurosbolivar.com',
-    token: 'ATATT3xFfGF0IjR_h4E8_4kOdHAL7gjPnt_l-YOeEWtMI3jgvQHFNgY89yd3lvY2vOWSmMfundKyayyxsnLfG8FjNwiIOxG96T4AOy7gNw90iWtaLh4X3e4lrnTn0uQB72aRrm12pOlzD5P6hwklm-YppUI1-d-GH_h8HhIJ4eC0wRIoyj9t7Hg=A25B8C11'
+    // Token manejado por el proxy en Render (no expuesto en frontend)
+    email: '',
+    token: ''
 };
 
 // Tribu/Squad unificado (cascading) — igual que en Jira
@@ -385,14 +386,9 @@ async function jiraFetch(apiPath) {
         url = `/jira/${apiPath}`;
         headers = {'Content-Type':'application/json'};
     } else {
-        // Proxy CORS público — permite llamar a Jira desde cualquier origen
-        const jiraUrl = `${JIRA.base}/rest/api/2/${apiPath}`;
-        url = `https://corsproxy.io/?${encodeURIComponent(jiraUrl)}`;
-        headers = {
-            'Authorization': 'Basic ' + btoa(`${JIRA.email}:${JIRA.token}`),
-            'Content-Type': 'application/json',
-            'x-requested-with': 'XMLHttpRequest'
-        };
+        // Proxy en Render (producción)
+        url = `https://dashboard-n1-sre.onrender.com/jira/${apiPath}`;
+        headers = {'Content-Type':'application/json'};
     }
     return fetch(url, {headers});
 }
