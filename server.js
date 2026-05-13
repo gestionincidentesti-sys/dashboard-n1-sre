@@ -104,7 +104,7 @@ const server = http.createServer((req, res) => {
 
     // Proxy a Jira API (SOLO LECTURA)
     if (req.url.startsWith('/jira/')) {
-        const jiraPath = req.url.replace('/jira/', '/rest/api/3/');
+        const jiraPath = req.url.replace('/jira/', '/rest/api/2/');
 
         // Validar que la ruta sea permitida
         if (!isPathAllowed(jiraPath)) {
@@ -120,16 +120,41 @@ const server = http.createServer((req, res) => {
             return;
         }
 
+        // Para /search, usar POST (Jira Cloud deprecó GET para search)
+        const urlObj = new URL(jiraPath, `https://${JIRA_HOST}`);
+        const isSearch = jiraPath.startsWith('/rest/api/2/search') || jiraPath.startsWith('/rest/api/3/search');
+        
+        let method = 'GET';
+        let postBody = null;
+        let finalPath = jiraPath;
+
+        if (isSearch) {
+            method = 'POST';
+            finalPath = '/rest/api/3/search';
+            // Convertir query params a body JSON
+            const params = new URLSearchParams(urlObj.search);
+            const body = {};
+            if (params.get('jql')) body.jql = params.get('jql');
+            if (params.get('maxResults')) body.maxResults = parseInt(params.get('maxResults'));
+            if (params.get('fields')) body.fields = params.get('fields').split(',');
+            if (params.get('startAt')) body.startAt = parseInt(params.get('startAt'));
+            postBody = JSON.stringify(body);
+        }
+
         const options = {
             hostname: JIRA_HOST,
-            path: jiraPath,
-            method: 'GET',
+            path: finalPath,
+            method: method,
             headers: {
                 'Authorization': 'Basic ' + Buffer.from(`${JIRA_EMAIL}:${JIRA_TOKEN}`).toString('base64'),
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
         };
+
+        if (postBody) {
+            options.headers['Content-Length'] = Buffer.byteLength(postBody);
+        }
 
         const proxyReq = https.request(options, (proxyRes) => {
             let data = '';
@@ -148,6 +173,7 @@ const server = http.createServer((req, res) => {
             res.end(JSON.stringify({ error: 'Proxy error: ' + err.message }));
         });
 
+        if (postBody) proxyReq.write(postBody);
         proxyReq.end();
         return;
     }
