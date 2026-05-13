@@ -130,7 +130,7 @@ const server = http.createServer((req, res) => {
 
         if (isSearch) {
             method = 'POST';
-            finalPath = '/rest/api/3/search';
+            finalPath = '/rest/api/2/search';
             // Convertir query params a body JSON
             const params = new URLSearchParams(queryString || '');
             const body = {};
