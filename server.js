@@ -104,10 +104,11 @@ const server = http.createServer((req, res) => {
 
     // Proxy a Jira API (SOLO LECTURA)
     if (req.url.startsWith('/jira/')) {
-        const jiraPath = req.url.replace('/jira/', '/rest/api/2/');
+        const rawPath = req.url.replace('/jira/', '/rest/api/2/');
+        const [pathOnly, queryString] = rawPath.split('?');
 
         // Validar que la ruta sea permitida
-        if (!isPathAllowed(jiraPath)) {
+        if (!isPathAllowed(pathOnly)) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Path not allowed. Only search and read operations permitted.' }));
             return;
@@ -121,18 +122,17 @@ const server = http.createServer((req, res) => {
         }
 
         // Para /search, usar POST (Jira Cloud deprecó GET para search)
-        const urlObj = new URL(jiraPath, `https://${JIRA_HOST}`);
-        const isSearch = jiraPath.startsWith('/rest/api/2/search') || jiraPath.startsWith('/rest/api/3/search');
+        const isSearch = pathOnly.includes('/search');
         
         let method = 'GET';
         let postBody = null;
-        let finalPath = jiraPath;
+        let finalPath = rawPath; // GET usa path completo con query params
 
         if (isSearch) {
             method = 'POST';
             finalPath = '/rest/api/3/search';
             // Convertir query params a body JSON
-            const params = new URLSearchParams(urlObj.search);
+            const params = new URLSearchParams(queryString || '');
             const body = {};
             if (params.get('jql')) body.jql = params.get('jql');
             if (params.get('maxResults')) body.maxResults = parseInt(params.get('maxResults'));
