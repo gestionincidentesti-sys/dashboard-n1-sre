@@ -1,0 +1,12 @@
+{
+  "name": "dashboard-n1-sre",
+  "version": "1.0.0",
+  "description": "Dashboard N1 SRE - Proxy y Analisis",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
