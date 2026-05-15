@@ -1,0 +1,580 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard N1 — Inteligencia Operacional</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#f8f9fa;--surface:#fff;--border:#e9ecef;--primary:#006341;--primary-light:#e8f5ee;--accent:#C5A028;--accent-light:#fef9e7;--danger:#dc3545;--warning:#fd7e14;--success:#28a745;--info:#0dcaf0;--text:#212529;--muted:#6c757d;--radius:12px;--shadow:0 2px 8px rgba(0,0,0,.06)}
+        body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+        
+        /* TOPBAR */
+        .topbar{background:linear-gradient(135deg,#006341 0%,#004d32 100%);padding:16px 32px;display:flex;justify-content:space-between;align-items:center;color:#fff;box-shadow:0 2px 12px rgba(0,99,65,.2)}
+        .topbar h1{font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:10px}
+        .topbar h1 .logo{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+        .topbar .meta{font-size:.72rem;opacity:.8;display:flex;align-items:center;gap:12px}
+        .topbar .meta .dot{width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+        /* LAYOUT */
+        .container{max-width:1440px;margin:0 auto;padding:24px}
+        
+        /* KPI CARDS */
+        .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+        .kpi-card{background:var(--surface);border-radius:var(--radius);padding:16px 20px;border:1px solid var(--border);box-shadow:var(--shadow);transition:all .2s;position:relative;overflow:hidden}
+        .kpi-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+        .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+        .kpi-card.green::before{background:var(--success)}
+        .kpi-card.red::before{background:var(--danger)}
+        .kpi-card.orange::before{background:var(--warning)}
+        .kpi-card.blue::before{background:var(--info)}
+        .kpi-card.gold::before{background:var(--accent)}
+        .kpi-card .kpi-val{font-size:1.8rem;font-weight:800;color:var(--text);margin-top:4px}
+        .kpi-card .kpi-lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+
+        /* CHARTS GRID */
+        .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+        .chart-card{background:var(--surface);border-radius:var(--radius);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow)}
+        .chart-card h3{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:16px}
+        .chart-card canvas{max-height:220px}
+
+        /* TRIBU CARDS */
+        .section{margin-bottom:24px}
+        .section-title{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .tribu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+        .tribu-card{background:var(--surface);border-radius:var(--radius);padding:16px;text-align:center;border:1px solid var(--border);cursor:pointer;transition:all .25s;box-shadow:var(--shadow)}
+        .tribu-card:hover{border-color:var(--primary);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,99,65,.12)}
+        .tribu-card.selected{border-color:var(--primary);background:var(--primary-light);box-shadow:0 8px 24px rgba(0,99,65,.15);transform:translateY(-3px)}
+        .tribu-card .count{font-size:1.8rem;font-weight:800;color:var(--primary)}
+        .tribu-card .name{font-size:.68rem;color:var(--muted);margin-top:4px;line-height:1.3}
+
+        /* FILTERS */
+        .filter-bar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+        .filter-group{display:flex;flex-direction:column;gap:4px}
+        .filter-label{font-size:.65rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+        .filter-select{padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:.8rem;color:var(--text);cursor:pointer;min-width:170px;transition:border-color .2s}
+        .filter-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,99,65,.1)}
+
+        /* TABS */
+        .tabs{display:flex;gap:4px;margin-bottom:0;padding:0 4px}
+        .tab{padding:12px 24px;font-size:.82rem;font-weight:600;cursor:pointer;border-radius:10px 10px 0 0;background:var(--bg);color:var(--muted);transition:all .2s;border:1px solid transparent;border-bottom:none}
+        .tab:hover{background:var(--surface);color:var(--text)}
+        .tab.active{background:var(--surface);color:var(--primary);border-color:var(--border);font-weight:700;box-shadow:0 -2px 8px rgba(0,0,0,.04)}
+        .tab .tab-count{background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;font-size:.68rem;margin-left:6px;font-weight:700}
+        .tab.active .tab-count{background:var(--primary);color:#fff}
+        .tab-content{display:none;background:var(--surface);border-radius:0 12px 12px 12px;border:1px solid var(--border);padding:20px;box-shadow:var(--shadow)}
+        .tab-content.active{display:block}
+
+        /* TABLE */
+        table{width:100%;border-collapse:collapse;font-size:.78rem}
+        th{padding:10px 12px;text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);background:var(--bg);border-bottom:2px solid var(--border);font-weight:700}
+        td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+        tr:hover{background:rgba(0,99,65,.02)}
+        a{color:var(--primary);text-decoration:none;font-weight:600}
+        a:hover{text-decoration:underline}
+
+        /* BADGES */
+        .badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:.65rem;font-weight:600}
+        .b-pending{background:#fff3cd;color:#856404}
+        .b-progress{background:#d1ecf1;color:#0c5460}
+        .b-waiting{background:#f8d7da;color:#721c24}
+        .b-escalated{background:#e2d5f1;color:#5b2d8e}
+        .b-open{background:#cce5ff;color:#004085}
+        .b-high{background:#f8d7da;color:var(--danger)}
+        .b-medium{background:#fff3cd;color:#856404}
+        .b-tribu{background:var(--accent-light);color:#8b6914}
+
+        /* DESCRIPTION */
+        .desc-col{max-width:240px;font-size:.72rem;color:var(--muted);line-height:1.4}
+
+        /* BUTTONS */
+        .btn-analisis{padding:6px 12px;border:none;border-radius:6px;background:var(--primary);color:#fff;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .2s}
+        .btn-analisis:hover{background:#004d32;transform:scale(1.05)}
+
+        /* MODAL */
+        .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+        .modal-overlay.show{display:flex}
+        .modal{background:var(--surface);border-radius:16px;padding:28px;max-width:720px;width:92%;max-height:82vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.25);position:relative}
+        .modal-close{position:absolute;top:16px;right:20px;font-size:1.5rem;cursor:pointer;color:var(--muted);border:none;background:none;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .modal-close:hover{background:var(--bg);color:var(--danger)}
+        .modal h2{font-size:1.05rem;color:var(--text);margin-bottom:8px;padding-right:40px;font-weight:700}
+        .modal .caso-id{font-size:.75rem;color:var(--muted);margin-bottom:20px}
+        .modal .seccion{margin-bottom:16px;padding:14px;background:var(--bg);border-radius:10px;border-left:4px solid var(--primary)}
+        .modal .seccion h4{font-size:.8rem;color:var(--primary);margin-bottom:8px;font-weight:700}
+        .modal .seccion p{font-size:.78rem;color:var(--text);line-height:1.6}
+        .modal .seccion.solucion{border-left-color:var(--success)}
+        .modal .seccion.solucion h4{color:var(--success)}
+        .modal .loading{text-align:center;padding:40px;color:var(--muted);font-size:.85rem}
+
+        /* DOCS */
+        .docs{background:var(--surface);border-radius:var(--radius);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow)}
+        .docs h3{font-size:.85rem;color:var(--text);margin-bottom:12px;font-weight:700}
+        .doc-item{padding:8px 0;border-bottom:1px solid var(--border);font-size:.78rem;display:flex;justify-content:space-between;align-items:center}
+        .doc-item:last-child{border:none}
+        .doc-tag{padding:3px 8px;border-radius:6px;font-size:.6rem;font-weight:600;background:var(--primary-light);color:var(--primary)}
+
+        .hidden{display:none}
+        footer{text-align:center;padding:24px;font-size:.72rem;color:var(--muted)}
+
+        @media(max-width:768px){
+            .charts-grid{grid-template-columns:1fr}
+            .kpi-row{grid-template-columns:repeat(3,1fr)}
+            .filter-bar{flex-direction:column}
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1><span class="logo">📋</span> Dashboard N1 — Inteligencia Operacional</h1>
+    <div class="meta"><span class="dot"></span> Live · 15 Mayo 2026 · 17 tickets N1 · Seguros Bolívar</div>
+</div>
+
+<div class="container">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+        <div class="kpi-card green"><div class="kpi-lbl">Total N1</div><div class="kpi-val">17</div></div>
+        <div class="kpi-card red"><div class="kpi-lbl">Alta Prioridad</div><div class="kpi-val">3</div></div>
+        <div class="kpi-card orange"><div class="kpi-lbl">Escalados</div><div class="kpi-val">5</div></div>
+        <div class="kpi-card blue"><div class="kpi-lbl">Esperando Ayuda</div><div class="kpi-val">11</div></div>
+        <div class="kpi-card gold"><div class="kpi-lbl">En Desarrollo</div><div class="kpi-val">10</div></div>
+        <div class="kpi-card red"><div class="kpi-lbl">Problemas</div><div class="kpi-val">7</div></div>
+        <div class="kpi-card green"><div class="kpi-lbl">Tribus</div><div class="kpi-val">10</div></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <h3>Tickets por Tribu</h3>
+            <canvas id="chartTribu"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Distribución por Estado</h3>
+            <canvas id="chartEstado"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Aging — Antigüedad de Tickets</h3>
+            <canvas id="chartAging"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>N1 vs Desarrollo por Tribu</h3>
+            <canvas id="chartN1vsDev"></canvas>
+        </div>
+    </div>
+
+    <!-- TRIBU CARDS -->
+    <div class="section">
+        <div class="section-title">📊 Filtrar por Tribu (click para filtrar, click de nuevo para quitar)</div>
+        <div class="tribu-grid">
+            <div class="tribu-card" onclick="filterTribu('COREX')"><div class="count">3</div><div class="name">COREX</div></div>
+            <div class="tribu-card" onclick="filterTribu('Servicios Bolívar, Servicios Bolívar Facilities y El Libertador')"><div class="count">2</div><div class="name">Serv. Bolívar / Facilities / Libertador</div></div>
+            <div class="tribu-card" onclick="filterTribu('ARL')"><div class="count">2</div><div class="name">ARL</div></div>
+            <div class="tribu-card" onclick="filterTribu('Bancaseguros y Negocios Digitales')"><div class="count">2</div><div class="name">Bancaseguros y Neg. Digitales</div></div>
+            <div class="tribu-card" onclick="filterTribu('Movilidad')"><div class="count">2</div><div class="name">Movilidad</div></div>
+            <div class="tribu-card" onclick="filterTribu('Empresas')"><div class="count">2</div><div class="name">Empresas</div></div>
+            <div class="tribu-card" onclick="filterTribu('Areas Corporativas')"><div class="count">1</div><div class="name">Areas Corporativas</div></div>
+            <div class="tribu-card" onclick="filterTribu('Bienestar')"><div class="count">1</div><div class="name">Bienestar</div></div>
+            <div class="tribu-card" onclick="filterTribu('Vivienda')"><div class="count">1</div><div class="name">Vivienda</div></div>
+            <div class="tribu-card" onclick="filterTribu('Servicio, Operaciones y Canales')"><div class="count">1</div><div class="name">Servicio, Operaciones y Canales</div></div>
+        </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filter-bar">
+        <div class="filter-group"><label class="filter-label">Estado</label><select class="filter-select" onchange="filterEstado(this.value)"><option value="all">Todos los estados</option><option value="Esperando ayuda">Esperando ayuda</option><option value="En progreso">En progreso</option><option value="Escalado">Escalado</option><option value="Pendiente">Pendiente</option><option value="Abierto">Abierto</option></select></div>
+        <div class="filter-group"><label class="filter-label">Prioridad</label><select class="filter-select" onchange="filterPrioridad(this.value)"><option value="all">Todas</option><option value="Alta">Alta</option><option value="Media">Media</option><option value="Baja">Baja</option></select></div>
+        <div class="filter-group"><label class="filter-label">Asignado</label><select class="filter-select" onchange="filterAsignado(this.value)"><option value="all">Todos</option><option value="Sin asignar">Sin asignar</option><option value="Diego Sanchez">Diego Sanchez</option><option value="Juan D. Rivera">Juan D. Rivera</option><option value="Eimy Osorio">Eimy Osorio</option><option value="Bryan Romero">Bryan Romero</option><option value="Genesis Macias">Genesis Macias</option><option value="Juan C. Arias">Juan C. Arias</option><option value="Luis F. Bello">Luis F. Bello</option><option value="Brian Manjarres">Brian Manjarres</option><option value="Michael Espinosa">Michael Espinosa</option></select></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('n1')">🎯 En N1 <span class="tab-count">17</span></div>
+        <div class="tab" onclick="switchTab('desarrollo')">🚀 Desarrollo <span class="tab-count">10</span></div>
+        <div class="tab" onclick="switchTab('problemas')">🚨 Problemas <span class="tab-count">7</span></div>
+    </div>
+
+    <!-- TAB N1 -->
+    <div class="tab-content active" id="tab-n1">
+        <table>
+            <thead><tr><th>Caso</th><th>Resumen</th><th>Descripción</th><th>Tribu</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Aging</th><th>Acción</th></tr></thead>
+            <tbody id="ticketBody">
+            <tr data-tribu="Servicios Bolívar, Servicios Bolívar Facilities y El Libertador" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Juan D. Rivera" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041550" target="_blank">MDSB-1041550</a></td><td>Facil-pro</td><td class="desc-col">Error al enviar reporte en Fácil Pro</td><td><span class="badge b-tribu">Serv. Bolívar</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Juan D. Rivera</td><td>0d</td><td></td></tr>
+            <tr data-tribu="Movilidad" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Genesis Macias" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041524" target="_blank">MDSB-1041524</a></td><td>SIMON - Cotizadores Autos</td><td class="desc-col">Error en cotizador de autos SIMON</td><td><span class="badge b-tribu">Movilidad</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Genesis Macias</td><td>0d</td><td></td></tr>
+            <tr data-tribu="Areas Corporativas" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Sergio Diaz" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041478" target="_blank">MDSB-1041478</a></td><td>Pago en Linea</td><td class="desc-col">Error en plataforma de pago en línea</td><td><span class="badge b-tribu">Areas Corp.</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Sergio Diaz</td><td>0d</td><td></td></tr>
+            <tr data-tribu="Vivienda" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Bryan Romero" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041471" target="_blank">MDSB-1041471</a></td><td>Jelpit Conjuntos Cuotas al día</td><td class="desc-col">Error en módulo cuotas al día Jelpit Conjuntos</td><td><span class="badge b-tribu">Vivienda</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Bryan Romero</td><td>0d</td><td></td></tr>
+            <tr data-tribu="ARL" data-estado="Escalado" data-prioridad="Media" data-asignado="Sin asignar" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041468" target="_blank">MDSB-1041468</a></td><td>TRONADOR ARL</td><td class="desc-col">Error facturas sin información quedaron como factura de recaudo</td><td><span class="badge b-tribu">ARL</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Sin asignar</td><td>0d</td><td></td></tr>
+            <tr data-tribu="COREX" data-estado="Escalado" data-prioridad="Alta" data-asignado="Michael Espinosa" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041460" target="_blank">MDSB-1041460</a></td><td>Servicio de deuda</td><td class="desc-col">Error en servicio de deuda - cobro incorrecto</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-high">Alta</span></td><td>Michael Espinosa</td><td>0d</td><td></td></tr>
+            <tr data-tribu="Bancaseguros y Negocios Digitales" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Imera Villadiego" data-dias="0"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1041448" target="_blank">MDSB-1041448</a></td><td>TRONADOR BANCA + MOVILIDAD</td><td class="desc-col">Endosos errados prima emitida productos masivos banca</td><td><span class="badge b-tribu">Bancaseguros</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Imera Villadiego</td><td>0d</td><td></td></tr>
+            <tr data-tribu="Empresas" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Bryan Romero" data-dias="1"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040822" target="_blank">MDSB-1040822</a></td><td>Error Anulación</td><td class="desc-col">Error en anulación de póliza - Empresas</td><td><span class="badge b-tribu">Empresas</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Bryan Romero</td><td>1d</td><td></td></tr>
+            <tr data-tribu="Empresas" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Cesar Heredia" data-dias="1"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040455" target="_blank">MDSB-1040455</a></td><td>SIMON WEB VENTAS CIA 3</td><td class="desc-col">Error al aumentar valor asegurado mercancias a $1,500M riesgo 2 - Prod 778</td><td><span class="badge b-tribu">Empresas</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Cesar Heredia</td><td>1d</td><td></td></tr>
+            <tr data-tribu="Bancaseguros y Negocios Digitales" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Imera Villadiego" data-dias="2"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040295" target="_blank">MDSB-1040295</a></td><td>TRONADOR BANCA - ENDOSOS PROVISORIOS</td><td class="desc-col">Endosos provisorios con facturas ya cobradas siguen en estado PROVISORIO</td><td><span class="badge b-tribu">Bancaseguros</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Imera Villadiego</td><td>2d</td><td></td></tr>
+            <tr data-tribu="Servicios Bolívar, Servicios Bolívar Facilities y El Libertador" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Juan D. Rivera" data-dias="2"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040291" target="_blank">MDSB-1040291</a></td><td>FACIL PRO</td><td class="desc-col">Error al enviar reporte OTT 548766, usuario carga 70-90 adjuntos</td><td><span class="badge b-tribu">Serv. Bolívar</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Juan D. Rivera</td><td>2d</td><td></td></tr>
+            <tr data-tribu="ARL" data-estado="Esperando ayuda" data-prioridad="Media" data-asignado="Eimy Osorio" data-dias="2"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040271" target="_blank">MDSB-1040271</a></td><td>Portales ARL - 2 USUARIOS</td><td class="desc-col">Municipio La Cruz: usuario delegado ve modulos pero no puede operar desde 08/05</td><td><span class="badge b-tribu">ARL</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-medium">Media</span></td><td>Eimy Osorio</td><td>2d</td><td></td></tr>
+            <tr data-tribu="COREX" data-estado="Escalado" data-prioridad="Media" data-asignado="Michael Espinosa" data-dias="4"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039986" target="_blank">MDSB-1039986</a></td><td>Servicio de deuda</td><td class="desc-col">Poliza vida 4201172000516 muestra dos valores al pagar, factura $255,464 incorrecta</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Michael Espinosa</td><td>4d</td><td></td></tr>
+            <tr data-tribu="COREX" data-estado="Esperando ayuda" data-prioridad="Alta" data-asignado="Julio Franco" data-dias="5"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039874" target="_blank">MDSB-1039874</a></td><td>CR299610 archivos sin datos</td><td class="desc-col">Programa Segmentacion Sarlaft genero archivos vacios, requiere BD DMVENTAS</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-high">Alta</span></td><td>Julio Franco</td><td>5d</td><td></td></tr>
+            <tr data-tribu="Bienestar" data-estado="Escalado" data-prioridad="Alta" data-asignado="Sin asignar" data-dias="7"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039731" target="_blank">MDSB-1039731</a></td><td>Cancelar polizas ORA-20005</td><td class="desc-col">Cancelar polizas prod 710 sec 29 - valor asegurado bajo politica minima</td><td><span class="badge b-tribu">Bienestar</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-high">Alta</span></td><td>Sin asignar</td><td>7d</td><td></td></tr>
+            <tr data-tribu="Movilidad" data-estado="En progreso" data-prioridad="Media" data-asignado="Andres Ramirez" data-dias="8"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039665" target="_blank">MDSB-1039665</a></td><td>CB201005 Renovacion autos</td><td class="desc-col">Proceso batch renovacion autos tarda mas de 4 horas en ejecutar</td><td><span class="badge b-tribu">Movilidad</span></td><td><span class="badge b-progress">En progreso</span></td><td><span class="badge b-medium">Media</span></td><td>Andres Ramirez</td><td>8d</td><td></td></tr>
+            <tr data-tribu="Servicio, Operaciones y Canales" data-estado="Pendiente" data-prioridad="Media" data-asignado="Luis F. Bello" data-dias="9"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039600" target="_blank">MDSB-1039600</a></td><td>Intranet Bolnet</td><td class="desc-col">Intranet Bolnet no carga modulo Mi Compania, error autenticacion SSO</td><td><span class="badge b-tribu">Serv. Op. y Canales</span></td><td><span class="badge b-pending">Pendiente</span></td><td><span class="badge b-medium">Media</span></td><td>Luis F. Bello</td><td>9d</td><td></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TAB DESARROLLO -->
+    <div class="tab-content" id="tab-desarrollo">
+        <table>
+            <thead><tr><th>Caso</th><th>Resumen</th><th>Tribu</th><th>Estado</th><th>Prioridad</th><th>Asignado Dev</th><th>Fecha Escalado</th></tr></thead>
+            <tbody id="ticketBodyDev">
+            <tr data-tribu="ARL"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040598" target="_blank">MDSB-1040598</a></td><td>Sipab WEB - Error detalle pacto</td><td><span class="badge b-tribu">ARL</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Sin asignar</td><td>14 May 10:12</td></tr>
+            <tr data-tribu="Bienestar"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040528" target="_blank">MDSB-1040528</a></td><td>TRONADOR CIA 2 - NO GENERA PRE-COBRO</td><td><span class="badge b-tribu">Bienestar</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-high">Alta</span></td><td>Sin asignar</td><td>14 May 10:59</td></tr>
+            <tr data-tribu="Servicios Bolívar, Servicios Bolívar Facilities y El Libertador"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1040291" target="_blank">MDSB-1040291</a></td><td>FACIL PRO</td><td><span class="badge b-tribu">Serv. Bolívar</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Diego Sanchez</td><td>14 May 09:25</td></tr>
+            <tr data-tribu="COREX"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039986" target="_blank">MDSB-1039986</a></td><td>Servicio de deuda</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Michael Espinosa</td><td>13 May 15:49</td></tr>
+            <tr data-tribu="COREX"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039874" target="_blank">MDSB-1039874</a></td><td>CR299610 archivos sin datos</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-waiting">Esperando ayuda</span></td><td><span class="badge b-high">Alta</span></td><td>Julio Franco</td><td>13 May 15:46</td></tr>
+            <tr data-tribu="ARL"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039845" target="_blank">MDSB-1039845</a></td><td>Sipab WEB - Error detalle pacto</td><td><span class="badge b-tribu">ARL</span></td><td><span class="badge b-progress">En progreso</span></td><td><span class="badge b-medium">Media</span></td><td>Brian Manjarres</td><td>13 May 14:52</td></tr>
+            <tr data-tribu="Bienestar"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039731" target="_blank">MDSB-1039731</a></td><td>Cancelar polizas ORA-20005</td><td><span class="badge b-tribu">Bienestar</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-high">Alta</span></td><td>Sin asignar</td><td>13 May 15:00</td></tr>
+            <tr data-tribu="Servicios Bolívar, Servicios Bolívar Facilities y El Libertador"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039642" target="_blank">MDSB-1039642</a></td><td>Jelpit Conjuntos Recaudo</td><td><span class="badge b-tribu">Serv. Bolívar</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Nicolas Garzon</td><td>13 May 15:28</td></tr>
+            <tr data-tribu="COREX"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039630" target="_blank">MDSB-1039630</a></td><td>Servicio deuda</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Michael Espinosa</td><td>13 May 15:48</td></tr>
+            <tr data-tribu="ARL"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1039596" target="_blank">MDSB-1039596</a></td><td>Sisalud ARL - legalizacion reintegro</td><td><span class="badge b-tribu">ARL</span></td><td><span class="badge b-escalated">Escalado</span></td><td><span class="badge b-medium">Media</span></td><td>Sin asignar</td><td>13 May 10:29</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- TAB PROBLEMAS -->
+    <div class="tab-content" id="tab-problemas">
+        <table>
+            <thead><tr><th>Caso</th><th>Problema</th><th>Tribu</th><th>Estado</th><th>Prioridad</th></tr></thead>
+            <tbody id="ticketBodyProblemas">
+            <tr data-tribu="Servicios Bolívar, Servicios Bolívar Facilities y El Libertador"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1030382" target="_blank">MDSB-1030382</a></td><td>Alta latencia microservicio reportar Facil Pro</td><td><span class="badge b-tribu">Serv. Bolívar</span></td><td><span class="badge b-progress">Investigacion SD</span></td><td><span class="badge b-high">Critico</span></td></tr>
+            <tr data-tribu="COREX"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1027598" target="_blank">MDSB-1027598</a></td><td>Falla programa CB700155 JOB AJMDIA3</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-open">Abierto</span></td><td><span class="badge b-medium">Media</span></td></tr>
+            <tr data-tribu="Movilidad"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-1026018" target="_blank">MDSB-1026018</a></td><td>Falla programas CB902347 y CB902349</td><td><span class="badge b-tribu">Movilidad</span></td><td><span class="badge b-progress">Investigacion ACR</span></td><td><span class="badge b-medium">Media</span></td></tr>
+            <tr data-tribu="COREX"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-967566" target="_blank">MDSB-967566</a></td><td>Programa AB800012 genera asiento contable inconsistente</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-progress">Investigacion ACR</span></td><td><span class="badge b-medium">Media</span></td></tr>
+            <tr data-tribu="Bienestar"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-969327" target="_blank">MDSB-969327</a></td><td>Incidencia recurrente calculo devoluciones prorrateo</td><td><span class="badge b-tribu">Bienestar</span></td><td><span class="badge b-progress">Investigacion ACR</span></td><td><span class="badge b-medium">Media</span></td></tr>
+            <tr data-tribu="Servicio, Operaciones y Canales"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-961150" target="_blank">MDSB-961150</a></td><td>Saturacion servidor AP56SBCC04 Siebel</td><td><span class="badge b-tribu">Serv. Op. y Canales</span></td><td><span class="badge b-progress">Investigacion ACR</span></td><td><span class="badge b-medium">Media</span></td></tr>
+            <tr data-tribu="COREX"><td><a href="https://jirasegurosbolivar.atlassian.net/browse/MDSB-942185" target="_blank">MDSB-942185</a></td><td>Falla visualizacion deudas en Pago en Linea</td><td><span class="badge b-tribu">COREX</span></td><td><span class="badge b-progress">Investigacion ACR</span></td><td><span class="badge b-medium">Media</span></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- DOCS -->
+    <div class="docs" style="margin-top:24px">
+        <h3>📖 Runbooks & Documentacion</h3>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1729626147" target="_blank">Ajuste Comision Poliza Hogar</a><span class="doc-tag">Hogar</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/673120287" target="_blank">Errores Usuarios Portal ARL</a><span class="doc-tag">ARL</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/610730146" target="_blank">Playbook Post-mortem</a><span class="doc-tag">General</span></div>
+        <div class="doc-item"><a href="https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/819167242" target="_blank">Liquidaciones de Siniestros</a><span class="doc-tag">General</span></div>
+    </div>
+</div>
+
+<footer>Dashboard generado 15 Mayo 2026 · Equipo SRE Seguros Bolivar · Inteligencia Operacional N1</footer>
+
+<div class="modal-overlay" id="modalAnalisis" onclick="if(event.target===this)cerrarModal()">
+    <div class="modal">
+        <button class="modal-close" onclick="cerrarModal()">&times;</button>
+        <h2 id="modalTitulo">Analisis del Caso</h2>
+        <div class="caso-id" id="modalCasoId"></div>
+        <div id="modalContenido"><div class="loading">Generando analisis...</div></div>
+    </div>
+</div>
+
+<script>
+// Charts
+const ctxTribu = document.getElementById('chartTribu').getContext('2d');
+new Chart(ctxTribu, { type:'bar', data:{ labels:['COREX','Serv.Bolívar','ARL','Bancaseg.','Movilidad','Empresas','Areas Corp.','Bienestar','Vivienda','Serv.Op.'], datasets:[{label:'Tickets N1',data:[3,2,2,2,2,2,1,1,1,1],backgroundColor:['#fd7e14','#006341','#0dcaf0','#dc3545','#20c997','#0d6efd','#6c757d','#198754','#C5A028','#6f42c1']}]}, options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+
+const ctxEstado = document.getElementById('chartEstado').getContext('2d');
+new Chart(ctxEstado, { type:'doughnut', data:{ labels:['Esperando ayuda','En progreso','Escalado','Pendiente','Abierto'], datasets:[{data:[28,4,12,1,2],backgroundColor:['#f8d7da','#d1ecf1','#e2d5f1','#fff3cd','#cce5ff']}]}, options:{plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
+
+const ctxAging = document.getElementById('chartAging').getContext('2d');
+new Chart(ctxAging, { type:'bar', data:{ labels:['0-1d','2-3d','4-5d','6-7d','8-10d'], datasets:[{label:'Tickets',data:[4,14,12,9,8],backgroundColor:['#28a745','#20c997','#fd7e14','#dc3545','#721c24']}]}, options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+
+const ctxN1Dev = document.getElementById('chartN1vsDev').getContext('2d');
+new Chart(ctxN1Dev, { type:'bar', data:{ labels:['COREX','Serv.Bolívar','ARL','Bancaseg.','Movilidad','Empresas','Areas Corp.','Bienestar','Vivienda','Serv.Op.'], datasets:[{label:'En N1',data:[3,2,2,2,2,2,1,1,1,1],backgroundColor:'#006341'},{label:'En Desarrollo',data:[3,1,2,0,1,1,0,2,0,0],backgroundColor:'#C5A028'}]}, options:{plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true}}}});
+
+// Filters
+let activeFilters = { tribu:'all', estado:'all', prioridad:'all', asignado:'all' };
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const tabs = document.querySelectorAll('.tab');
+    if(tab==='n1'){tabs[0].classList.add('active');document.getElementById('tab-n1').classList.add('active');}
+    else if(tab==='desarrollo'){tabs[1].classList.add('active');document.getElementById('tab-desarrollo').classList.add('active');}
+    else{tabs[2].classList.add('active');document.getElementById('tab-problemas').classList.add('active');}
+}
+
+function applyFilters() {
+    const rows = document.querySelectorAll('#ticketBody tr');
+    let count = 0;
+    rows.forEach(row => {
+        const tv = row.dataset.tribu||'';
+        const mt = activeFilters.tribu==='all'||tv.includes(activeFilters.tribu)||activeFilters.tribu.includes(tv);
+        const me = activeFilters.estado==='all'||row.dataset.estado===activeFilters.estado;
+        const mp = activeFilters.prioridad==='all'||row.dataset.prioridad===activeFilters.prioridad;
+        const ma = activeFilters.asignado==='all'||row.dataset.asignado===activeFilters.asignado;
+        if(mt&&me&&mp&&ma){row.classList.remove('hidden');count++;}else{row.classList.add('hidden');}
+    });
+    document.getElementById('countN1').textContent = count;
+}
+
+function applyFilterDev() {
+    const rows = document.querySelectorAll('#ticketBodyDev tr');
+    rows.forEach(row => {
+        const tv = row.dataset.tribu||'';
+        const mt = activeFilters.tribu==='all'||tv.includes(activeFilters.tribu)||activeFilters.tribu.includes(tv);
+        if(mt){row.classList.remove('hidden');}else{row.classList.add('hidden');}
+    });
+}
+
+function applyFilterProblemas() {
+    const rows = document.querySelectorAll('#ticketBodyProblemas tr');
+    rows.forEach(row => {
+        const tv = row.dataset.tribu||'';
+        const mt = activeFilters.tribu==='all'||tv.includes(activeFilters.tribu)||activeFilters.tribu.includes(tv);
+        if(mt){row.classList.remove('hidden');}else{row.classList.add('hidden');}
+    });
+}
+
+function filterTribu(value) {
+    if(activeFilters.tribu===value){activeFilters.tribu='all';document.querySelectorAll('.tribu-card').forEach(c=>c.classList.remove('selected'));}
+    else{activeFilters.tribu=value;document.querySelectorAll('.tribu-card').forEach(c=>c.classList.remove('selected'));event.currentTarget.classList.add('selected');}
+    applyFilters();applyFilterDev();applyFilterProblemas();
+}
+function filterEstado(v){activeFilters.estado=v;activeFilters.tribu='all';document.querySelectorAll('.tribu-card').forEach(c=>c.classList.remove('selected'));applyFilters();applyFilterDev();applyFilterProblemas();}
+function filterPrioridad(v){activeFilters.prioridad=v;activeFilters.tribu='all';document.querySelectorAll('.tribu-card').forEach(c=>c.classList.remove('selected'));applyFilters();applyFilterDev();applyFilterProblemas();}
+function filterAsignado(v){activeFilters.asignado=v;activeFilters.tribu='all';document.querySelectorAll('.tribu-card').forEach(c=>c.classList.remove('selected'));applyFilters();applyFilterDev();applyFilterProblemas();}
+
+// Analysis - funciona offline con análisis local basado en patrones
+function analizarCaso(casoId, resumen, desc) {
+    const modal=document.getElementById('modalAnalisis'),titulo=document.getElementById('modalTitulo'),casoIdEl=document.getElementById('modalCasoId'),contenido=document.getElementById('modalContenido');
+    titulo.textContent='Análisis SRE — '+resumen;
+    casoIdEl.innerHTML='<a href="https://jirasegurosbolivar.atlassian.net/browse/'+casoId+'" target="_blank" style="color:var(--primary)">'+casoId+' — Abrir en Jira</a>';
+    modal.classList.add('show');
+
+    // Generar análisis local basado en patrones de la descripción
+    const analisis = generarAnalisisLocal(casoId, resumen, desc);
+    renderizarAnalisis(analisis, contenido);
+}
+
+function generarAnalisisLocal(casoId, resumen, desc) {
+    const d = (desc||'').toLowerCase();
+    const r = (resumen||'').toLowerCase();
+    let causaRaiz='', analisis='', solucionInmediata='', solucionDefinitiva='', prevencion='', riesgo='Medio';
+    let casosRelacionados=[], runbooks=[];
+
+    // --- PATRÓN: Anulación desde inicio con saldo incorrecto ---
+    if ((d.includes('anulo desde inicio') || d.includes('anulación desde inicio') || d.includes('anulada desde inicio') || d.includes('anulacion desde inicio')) && (d.includes('saldo') || d.includes('negativo') || d.includes('deuda'))) {
+        causaRaiz='Patrón recurrente en productos de Seguros Generales (especialmente 923 - Ofertas de Protección): Cuando se anula una póliza desde inicio de vigencia, el sistema genera la factura negativa (de anulación) por un valor DIFERENTE al de la factura positiva original. Esto deja un saldo residual (a favor o en contra del cliente) que no es real.\n\nCausas técnicas identificadas:\n• La factura negativa se calcula con parámetros de tarificación diferentes a los de la emisión original (posiblemente por cambios de tarifa entre la fecha de emisión y la fecha de anulación).\n• Si hubo endosos intermedios, el sistema no los considera correctamente al calcular el valor total de anulación.\n• El proceso de anulación NO ejecuta el cruce automático de facturas cuando el neto debería ser cero.\n\nTablas involucradas: A2990700 (facturas), A2990701 (detalle comisión por factura), A2000030 (datos fijos póliza).';
+        analisis='El flujo de anulación desde inicio de vigencia debería generar una factura negativa por el MISMO valor absoluto de la factura positiva original, de modo que al cruzarse el saldo quede en $0. Sin embargo, el sistema recalcula la prima con parámetros actuales en lugar de usar el valor histórico de la factura original.\n\nEste es un problema recurrente — la misma reportante ya lo reportó anteriormente (MDSB-464682 en octubre 2023) y se resolvió con ajuste manual, pero la causa de raíz nunca se corrigió en el sistema.\n\nEl procedimiento de cruce de facturas (SIM_PCK_CONSULTAPOLIZASMOD.PROC_CRUCE_FACTURAS) puede resolver el caso puntual, pero el problema seguirá ocurriendo en nuevas anulaciones hasta que se corrija la lógica de cálculo.';
+        solucionInmediata='1. Consultar en A2990700 las facturas de la póliza afectada:\n   SELECT NUM_FACTURA, IMP_PRIMA_LOCAL, MCA_ESTADO FROM A2990700 WHERE NUM_POL1 = [POLIZA] AND COD_CIA = 3;\n\n2. Identificar la factura positiva (emisión) y la negativa (anulación) — verificar que los valores absolutos no coinciden.\n\n3. Ejecutar cruce de facturas para neutralizar el saldo:\n   SIM_PCK_CONSULTAPOLIZASMOD.PROC_CRUCE_FACTURAS([POLIZA], [SECCION], [FACTURA_POS], [FACTURA_NEG], W_ERROR);\n\n4. Validar que las facturas cambien de estado EP → CT (cruzadas).\n\n5. Confirmar con el usuario que el saldo del cliente quedó en $0.';
+        solucionDefinitiva='Modificar la lógica de anulación desde inicio de vigencia para que:\n• La factura negativa SIEMPRE se genere por el mismo valor absoluto de la factura positiva original (no recalcule con parámetros actuales).\n• Se implemente cruce automático de facturas post-anulación cuando la anulación es desde inicio de vigencia (neto debe ser cero por definición).\n• Se agregue validación que detecte cuando el neto de una anulación desde inicio ≠ 0 y alerte antes de confirmar.';
+        prevencion='1. Crear alerta/monitor que detecte anulaciones desde inicio de vigencia donde el saldo resultante ≠ $0.\n2. Implementar validación post-anulación que compare automáticamente factura positiva vs negativa y ejecute cruce si corresponde.\n3. Documentar el procedimiento de cruce manual en el Runbook de Ajuste Comisión Póliza Hogar para referencia del equipo N1.\n4. Considerar crear un ticket de Problema (Problem) dado que es un patrón recurrente no corregido desde 2023.';
+        casosRelacionados=[{key:'MDSB-464682',resumen:'Misma reportante (Marisela Murillo), mismo producto 923: anulación desde inicio dejó saldo a cobrar — Resuelto con ajuste manual (Oct 2023)'},{key:'MDSB-987410',resumen:'Póliza Hogar 1004500009516 anulada desde inicio quedó con deuda de $942.504 — Resuelto con ajuste'},{key:'MDSB-974600',resumen:'Póliza cumplimiento 1540621507435 anulada desde inicio generó saldo a favor errado de -$4.124.153 — Resuelto'},{key:'MDSB-956439',resumen:'Pólizas 1003500372503/109 anuladas desde inicio no cruzan comisión en 0 — Resuelto con cruce facturas'}];
+        runbooks=[{title:'Runbook Ajuste Comisión Póliza Hogar',url:'https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1729626147'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: Error ORA-20005 ---
+    else if (d.includes('ora-20005') || d.includes('error en el calculo') || (d.includes('valor asegurado') && d.includes('minima'))) {
+        causaRaiz='Error Oracle ORA-20005 en cálculo de coeficiente. Tabla de coeficientes inconsistente con parámetros de la póliza. Pólizas con valores asegurados bajo política mínima.';
+        analisis='El procedimiento de cálculo no maneja la excepción cuando valor asegurado < mínimo parametrizado.';
+        solucionInmediata='1. Identificar pólizas y validar valores asegurados.\n2. Verificar tabla de coeficientes para producto/sección.\n3. Si valor bajo mínima, cancelación manual.\n4. Coordinar con DBA.';
+        solucionDefinitiva='Modificar procedimiento de cálculo para manejar excepción con mensaje descriptivo.';
+        prevencion='1. Validación previa valor asegurado vs política mínima.\n2. Monitoreo errores ORA-20005.\n3. Alerta pólizas con valores bajo mínimo.';
+        casosRelacionados=[{key:'MDSB-1039731',resumen:'Cancelar pólizas prod 710 - valor bajo mínima'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: Fácil Pro ---
+    else if (d.includes('facil pro') || d.includes('fácil pro') || r.includes('facil pro') || r.includes('facil-pro')) {
+        causaRaiz='Problema en microservicio de gestión de OTTs de Fácil Pro. Manejo de múltiples adjuntos, payload excesivo, o timeout del servicio.';
+        analisis='Verificar: cantidad de adjuntos, tamaño total, estado del servicio en Datadog (tag: facil-pro). Microservicio de OTTs es el punto de falla común.';
+        solucionInmediata='1. Workaround: Limpiar trabajos desde Fácil-Pro Web.\n2. Reintentar con fecha/hora actual.\n3. Si >50 adjuntos, dividir en lotes.\n4. Verificar Datadog.';
+        solucionDefinitiva='Optimizar microservicio para cargas masivas con procesamiento asíncrono.';
+        prevencion='1. Límite visible de adjuntos por OTT.\n2. Procesamiento asíncrono >30 adjuntos.\n3. Monitorear latencia Datadog.\n4. Alerta tiempo respuesta > 30s.';
+        casosRelacionados=[{key:'MDSB-1030382',resumen:'Alta latencia microservicio Fácil Pro (Problema abierto)'}];
+        riesgo='Medio';
+    }
+    // --- PATRÓN: Portales ARL / SIPAB ---
+    else if (d.includes('sipab') || d.includes('portal arl') || d.includes('portales arl') || r.includes('sipab') || r.includes('portales - arl')) {
+        causaRaiz='Problema permisos/acceso portales ARL. Sesiones expiradas, permisos no propagados, o servicios backend con timeout.';
+        analisis='Verificar si es usuario delegado o directo. Portales ARL dependen de servicios backend de consulta que pueden tener timeout.';
+        solucionInmediata='1. Verificar estado usuario en autenticación.\n2. Revisar alertas Datadog servicios ARL.\n3. Validar empresa/póliza activa.\n4. Si delegado, verificar permisos delegación.';
+        solucionDefinitiva='Revisar propagación permisos. Mejorar manejo sesiones.';
+        prevencion='1. Health check periódico permisos delegados.\n2. Logs detallados.\n3. Alerta múltiples usuarios afectados.';
+        casosRelacionados=[{key:'MDSB-1040271',resumen:'Portal ARL - usuario delegado no puede operar'}];
+        runbooks=[{title:'Errores Usuarios Portal ARL',url:'https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/673120287'}];
+        riesgo='Medio';
+    }
+    // --- PATRÓN: Servicio de deuda / doble factura ---
+    else if (d.includes('servicio de deuda') || d.includes('doble factura') || (d.includes('deuda') && d.includes('factura'))) {
+        causaRaiz='Inconsistencia servicio deuda/cartera. Facturas duplicadas, batch fallido, o desincronización BD transaccional vs consulta.';
+        analisis='Verificar: estado facturas en A2990700, ejecución batch nocturno, consistencia BD transaccional vs servicio consulta.';
+        solucionInmediata='1. Validar en A2990700 origen factura/cobro incorrecto.\n2. Verificar batch nocturno.\n3. Comparar BD transaccional vs consulta.\n4. Si duplicada, ejecutar cruce.';
+        solucionDefinitiva='Reconciliación automática entre sistema transaccional y servicio consulta. Corregir generación duplicados.';
+        prevencion='1. Validación post-batch nocturno.\n2. Alerta facturas con valores divergentes.\n3. Reconciliación diaria.\n4. Monitoreo duplicados A2990700.';
+        casosRelacionados=[{key:'MDSB-1039986',resumen:'Servicio deuda - dos valores al pagar'},{key:'MDSB-1040507',resumen:'Doble factura mismo endoso'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: Endoso nominativo/informativo genera cobro ---
+    else if ((d.includes('endoso nominativo') || d.includes('endoso informativo') || d.includes('repaso') || d.includes('nota informativa')) && (d.includes('cobro') || d.includes('prima'))) {
+        causaRaiz='Cuando se procesa un endoso de tipo informativo/nominativo (repaso a la póliza, cambio de dirección, nota informativa, cambio de clave para próxima vigencia), el sistema ejecuta el recálculo de prima como parte del flujo estándar de endosos SIN distinguir si el endoso es puramente informativo.\n\nEl proceso de tarificación detecta diferencias (por redondeo, coberturas con valores mínimos no facturados previamente, o ajustes de tarifa) y genera un cobro adicional que NO debería existir.\n\nEl tipo de endoso (COD_END / SUB_COD_END) no tiene una validación que impida la generación de movimientos de prima cuando la naturaleza del endoso es solo informativa.\n\nTablas involucradas: A2990700 (facturas), proceso de tarificación del producto específico.';
+        analisis='El flujo de endoso en Tronador/Simón ejecuta el recálculo de prima como parte del proceso estándar, sin importar si el endoso modifica o no las coberturas/valores asegurados. En productos como el 923 (Hogar Digital), al existir coberturas con valores mínimos o ajustes pendientes, el recálculo detecta diferencias y genera un cobro adicional indebido.\n\nEste problema se ha presentado en múltiples ocasiones con el producto 923, tanto en endosos de cambio de dirección (MDSB-861786, cobro de $201.847) como en endosos de nota informativa (MDSB-1041293, cobro de $2.380).\n\nEl workaround es anular el cobro mediante cruce de facturas, pero la solución definitiva requiere que desarrollo modifique la lógica para que endosos informativos no disparen tarificación.';
+        solucionInmediata='1. Verificar en A2990700 las facturas generadas por el endoso informativo:\n   SELECT NUM_FACTURA, IMP_PRIMA_LOCAL, MCA_ESTADO FROM A2990700 WHERE NUM_POL1 = [POLIZA] AND NUM_END = [ENDOSO];\n\n2. Anular el cobro mediante ajuste/cruce de facturación para dejar saldo en cero.\n\n3. Ejecutar cruce de facturas si hay factura positiva indebida:\n   SIM_PCK_CONSULTAPOLIZASMOD.PROC_CRUCE_FACTURAS\n\n4. Confirmar con el usuario/asesor que el saldo quedó en $0.\n\n5. Si la vigencia ya finalizó, verificar que no haya cobro pendiente en cartera.';
+        solucionDefinitiva='Modificar la lógica del proceso de endosos para que cuando el tipo de endoso sea nominativo/informativo (sin modificación de coberturas ni valores asegurados):\n• El sistema NO ejecute recálculo de prima.\n• Se valide en el paquete de tarificación que si no hay cambios en A2000020 (coberturas/valores), se omita la generación de movimientos de prima.\n• Se agregue una validación pre-confirmación en Simón Web que alerte al usuario si un endoso informativo está generando cobro.';
+        prevencion='1. Implementar validación en el sistema que bloquee la generación de prima cuando el endoso es de tipo informativo/nominativo y no hay cambios en coberturas ni valores asegurados.\n2. En Simón Web, mostrar al usuario un resumen de prima antes de confirmar el endoso y alertar si un endoso informativo está generando cobro (para que pueda cancelar antes de emitir).\n3. Crear monitoreo/alerta que detecte endosos nominativos con generación de prima > $0 para intervención temprana del equipo N1.\n4. Documentar en runbook el procedimiento de cruce para resolución rápida.';
+        casosRelacionados=[{key:'MDSB-861786',resumen:'Endoso nominativo (cambio dirección) en producto 923 generó cobro de $201.847 sin modificar coberturas — Resuelto (sin contacto usuario)'},{key:'MDSB-1041293',resumen:'Endoso informativo (nota cambio clave) en producto 923 generó cobro de $2.380 — Análisis SRE documentado'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: Cambio de clave + comisiones ---
+    else if (d.includes('cambio de clave') && (d.includes('comision') || d.includes('comisión') || d.includes('no libera'))) {
+        causaRaiz='Cuando se hace un cambio de clave (COD_END=900, SUB_COD_END=89/90) sobre pólizas que originalmente fueron emitidas con convenio 3, el sistema NO genera registros en la tabla A2000252 porque no encuentra información previa — ya que en emisiones con convenio 3 no se deja información en esa tabla.\n\nFlujo técnico del problema:\n1. Cambio de clave → A2000030: COD_END=900, SUB_COD_END=89(reversa) / 90(cambio)\n2. Sistema evalúa comisión → SIM_PCK299_AB100273.PRC_PROCESO (línea 684)\n3. Llama a PRC_COMNORMAL → Revisa coberturas en A2000250\n4. Si es comisión por cobertura → PRC_COMSICOBERT → PRC_INSEXISTENTESEM (línea 4285)\n5. Busca datos previos en A2000252 → NO ENCUENTRA (emisión fue convenio 3)\n6. Flag V_TOTERRORRES ≠ 0 → NO inserta en A2000252 → NO genera comisión\n7. Sin registros en A2000252 ni A2990701 → Comisión NO se libera a SAGHI\n\nTablas involucradas: A2000030, A2000250, A2000252, A2990700, A2990701, A1001700/A1001701.';
+        analisis='El paquete SIM_PCK299_AB100273 en su procedimiento PRC_INSEXISTENTESEM depende de encontrar datos históricos en A2000252 para poder insertar nuevos registros de comisión. Cuando la póliza fue emitida con convenio 3, esos datos históricos no existen, y el sistema simplemente no genera la comisión (error silencioso).\n\nEste es un problema sistémico que afecta a TODAS las pólizas emitidas con convenio 3 que posteriormente tienen un cambio de clave. Se ha resuelto manualmente en múltiples ocasiones (MDSB-1023053, MDSB-1027715, MDSB-956439) pero la corrección de raíz en el paquete PL/SQL aún no se ha implementado.\n\nLa comisión debe aparecer en SAGHI después del día 15 del mes (fecha de corte). Si no aparece, es porque los registros en A2990701 no se generaron.';
+        solucionInmediata='1. Obtener datos de comisión desde A2000250:\n   SELECT DISTINCT NUM_SECU_POL, NUM_END, PORC_COMI, COD_AGENTE FROM A2000250 WHERE NUM_POL1 = [POLIZA] AND COD_CIA = 3 AND COD_SECC = 23;\n\n2. Calcular valor de comisión:\n   SELECT t1.PORC_COMI, t2.IMP_PRIMA, ROUND(t1.PORC_COMI * t2.IMP_PRIMA / 100) AS COMISION FROM A2000250 t1 JOIN A2000163 t2 ON t1.NUM_SECU_POL = t2.NUM_SECU_POL;\n\n3. Insertar en A2990701 (detalle comisión por factura).\n\n4. Insertar en A2000252 (detalle comisión por cobertura) — usar template de MDSB-1023053.\n\n5. Ejecutar cruce de facturas: SIM_PCK_CONSULTAPOLIZASMOD.PROC_CRUCE_FACTURAS\n\n6. Validar que facturas cambien de EP → CT y que la comisión aparezca en SAGHI en el siguiente corte (día 15).';
+        solucionDefinitiva='Modificar SIM_PCK299_AB100273.PRC_INSEXISTENTESEM (línea 4285):\n\nCondición actual (problemática):\n  IF datos_previos_en_A2000252 EXIST THEN INSERT nuevos registros\n  ELSE V_TOTERRORRES := V_TOTERRORRES + 1 (no inserta)\n\nCondición propuesta (fix):\n  IF datos_previos_en_A2000252 EXIST THEN INSERT nuevos registros\n  ELSIF datos_en_A2000250 EXIST AND actuacion != PR THEN\n    INSERT registros calculados desde A2000250 + A2000163\n  ELSE V_TOTERRORRES := V_TOTERRORRES + 1';
+        prevencion='1. Monitorear pólizas con cambio de clave que no generan registros en A2990701 (comisión no liberada).\n2. Crear validación post-cambio de clave que verifique existencia de registros en A2990701 y alerte si no se generaron.\n3. Documentar en runbook el procedimiento de corrección manual (INSERT en A2990701 + A2000252 + cruce).\n4. La comisión debe trasladarse a A5023000 y C5023000_NOM (tabla SAGHI) — validar en fecha de corte posterior al día 15.';
+        casosRelacionados=[{key:'MDSB-1031391',resumen:'Póliza 1530500010228 — reversa indebida de comisión por cambio de clave'},{key:'MDSB-1027715',resumen:'Póliza 2022500118003 — no libera comisión en factura 3 después de cambio de clave'},{key:'MDSB-1023397',resumen:'Pólizas 1530500187303 y 1530500178308 — facturas no liberan comisión'},{key:'MDSB-1023053',resumen:'Caso resuelto con documentación técnica completa (referencia para INSERT manual)'}];
+        runbooks=[{title:'Runbook Ajuste Comisión Póliza Hogar',url:'https://jirasegurosbolivar.atlassian.net/wiki/spaces/BDCT/pages/1729626147'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: Devolución de prima incorrecta ---
+    else if ((d.includes('devolucion') || d.includes('devolución')) && (d.includes('prima') || d.includes('errada') || d.includes('valor'))) {
+        causaRaiz='Error en el cálculo de devolución de prima. Cuando se reversa o anula un endoso, o se ajusta la vigencia de una póliza, el sistema calcula la devolución con parámetros ACTUALES en lugar de usar el valor ORIGINAL cobrado.\n\nCausas técnicas:\n• Cambios de tarifa entre la fecha de emisión del endoso y la fecha de reversión.\n• Redondeo diferente entre el cálculo original y el de reversión.\n• Coberturas modificadas entre endosos que afectan el cálculo.\n• En productos con descuento global, la reversión no aplica el descuento inversamente.\n\nTablas involucradas: A2990700 (facturas), A2000163 (primas por cobertura), A2000030 (datos fijos).';
+        analisis='El proceso de reversión/devolución debería devolver EXACTAMENTE el mismo valor que cobró originalmente. Sin embargo, el sistema recalcula la prima con los parámetros vigentes al momento de la reversión, lo que genera diferencias.\n\nEsto es especialmente problemático en:\n• Pólizas con descuentos globales (la reversión no aplica el descuento)\n• Pólizas con múltiples endosos (el sistema no identifica correctamente qué valor corresponde a cada endoso)\n• Productos con tarificación compleja (cumplimiento, RC, hogar)\n\nEl ajuste manual en las tablas de facturación es el workaround, pero la corrección definitiva requiere que el proceso de reversión use el valor histórico de la factura original.';
+        solucionInmediata='1. Identificar el endoso que generó el cobro original y su valor exacto:\n   SELECT NUM_FACTURA, IMP_PRIMA_LOCAL FROM A2990700 WHERE NUM_POL1 = [POLIZA] AND NUM_END = [ENDOSO_ORIGINAL];\n\n2. Comparar con el valor de la devolución generada:\n   SELECT NUM_FACTURA, IMP_PRIMA_LOCAL FROM A2990700 WHERE NUM_POL1 = [POLIZA] AND NUM_END = [ENDOSO_REVERSION];\n\n3. Calcular la diferencia y ajustar manualmente el valor de devolución en A2990700.\n\n4. Ejecutar cruce de facturas si aplica.\n\n5. Confirmar con el usuario que los valores quedaron correctos.';
+        solucionDefinitiva='Corregir la lógica de cálculo de devolución/reversión para que:\n• Use el valor ORIGINAL cobrado (de la factura histórica) en lugar de recalcular con parámetros actuales.\n• Considere descuentos globales aplicados en el endoso original.\n• Valide que el valor de devolución = valor de cobro original antes de confirmar.';
+        prevencion='1. Validación automática que compare valor cobrado original vs valor de devolución calculado — alertar si difieren más de un umbral (ej: 5% o $10.000).\n2. Alerta cuando la diferencia entre cobro y devolución supera el umbral.\n3. Documentar procedimiento de ajuste manual en runbook para resolución rápida.\n4. Considerar crear ticket de Problema si se detecta patrón recurrente en un producto específico.';
+        casosRelacionados=[{key:'MDSB-1011578',resumen:'Reversión de endoso genera valor menor al cobrado — póliza cumplimiento 1004101026001 — Resuelto con ajuste manual'},{key:'MDSB-1037694',resumen:'Garantía cumplimiento 1540132447801 no genera devolución correcta al ajustar vigencia — Resuelto'},{key:'MDSB-971149',resumen:'Error devolución prima mínima — reversión endoso antes de cambio de clave — Resuelto con ajuste'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: Exclusión riesgo prima incorrecta ---
+    else if (d.includes('exclusi') && (d.includes('prima') || d.includes('cobro') || d.includes('doble'))) {
+        causaRaiz='Al excluir un riesgo de una póliza, el sistema calcula la devolución de prima con parámetros DIFERENTES a los de la inclusión original. Esto ocurre especialmente cuando:\n\n• La póliza tiene un descuento global aplicado (ej: -5%) — la exclusión no aplica el descuento inversamente, generando un valor de devolución menor al esperado o incluso un cobro.\n• Hubo cambios de tarifa entre la fecha de inclusión y la fecha de exclusión.\n• El riesgo fue incluido en un endoso posterior al endoso 0 y el sistema no identifica correctamente el valor proporcional.\n\nResultado: en lugar de devolver la prima proporcional al tiempo restante, el sistema cobra o devuelve un valor incorrecto.';
+        analisis='El cálculo de prima en exclusión debería ser el inverso exacto de la inclusión (proporcional al tiempo restante de vigencia). Sin embargo, cuando hay descuentos globales o la inclusión fue en un endoso intermedio, el sistema no considera estos factores correctamente.\n\nEjemplo típico: Si se incluyó un riesgo con descuento global de -5% en endoso 1, al excluirlo en endoso 3 el sistema calcula la devolución SIN el descuento, generando una diferencia.\n\nEn algunos casos el sistema genera un COBRO en lugar de una devolución (prima positiva en vez de negativa), lo cual es claramente un error.';
+        solucionInmediata='1. Comparar prima de inclusión (endoso original) vs prima de exclusión (endoso actual).\n2. Verificar si hay descuentos globales en la póliza (revisar endosos anteriores).\n3. Dejar el endoso en PROVISORIO hasta que se corrija el valor.\n4. Si ya se emitió, ajustar manualmente el valor en A2990700.\n5. Coordinar con actuaría del producto si el cálculo es correcto o no.';
+        solucionDefinitiva='Corregir la lógica de exclusión de riesgos para que:\n• Considere descuentos globales aplicados y los aplique inversamente.\n• Calcule la devolución con los MISMOS parámetros que se usaron en la inclusión.\n• Valide que una exclusión SIEMPRE genere prima negativa (devolución), nunca positiva (cobro).';
+        prevencion='1. Validación pre-emisión que compare prima de inclusión vs exclusión y alerte si hay inconsistencia.\n2. Alerta cuando una exclusión genera cobro (prima positiva) en vez de devolución.\n3. Documentar escenarios de descuento global + exclusión en runbook.\n4. Considerar bloqueo automático si exclusión genera prima positiva.';
+        casosRelacionados=[{key:'MDSB-1041071',resumen:'Exclusión MOV360 en póliza genera prima positiva en vez de extorno negativo — póliza con descuento global -5%'},{key:'MDSB-1036170',resumen:'Exclusión riesgo 2 desde inicio vigencia cobra prima diferente a la inclusión del endoso 1'},{key:'MDSB-1040676',resumen:'Inclusión vehículos con cobro mensual mayor al esperado (prima dividida incorrectamente)'}];
+        riesgo='Alto';
+    }
+    // --- PATRÓN: SIMON/Tronador genérico ---
+    else if (d.includes('simon') || d.includes('tronador') || r.includes('simon') || r.includes('tronador')) {
+        causaRaiz='Incidencia en sistema core (SIMON/Tronador). Puede ser parametrización, reglas de negocio, o lógica de cálculo en módulo específico.';
+        analisis='Identificar: producto, sección, tipo operación (emisión, modificación, anulación, renovación). Errores core impactan facturación y liquidación.';
+        solucionInmediata='1. Identificar módulo y tipo operación.\n2. Verificar parametrización.\n3. Validar datos póliza/producto.\n4. Revisar logs por error ORA.';
+        solucionDefinitiva='Revisar lógica módulo afectado. Coordinar con tribu desarrollo.';
+        prevencion='1. Validaciones preventivas.\n2. Logs detallados.\n3. Documentar en runbook.';
+        riesgo='Alto';
+    }
+    // --- DEFAULT ---
+    else {
+        causaRaiz='Pendiente de análisis detallado. Se requiere revisión de logs y evidencias.';
+        analisis=desc || resumen + '. Se requiere revisión detallada.';
+        solucionInmediata='1. Revisar descripción y evidencias.\n2. Verificar logs Datadog/Kibana.\n3. Consultar runbooks Confluence.\n4. Aplicar workaround si existe.\n5. Escalar si no hay resolución en 2h.';
+        solucionDefinitiva='Pendiente diagnóstico. Escalar a tribu desarrollo con evidencia.';
+        prevencion='1. Documentar caso resuelto.\n2. Evaluar alerta preventiva.\n3. Actualizar runbooks.';
+    }
+
+    return { reporte: desc, causaRaiz, analisis, solucionInmediata, solucionDefinitiva, prevencion, riesgo, casosRelacionados, runbooks };
+}
+
+function renderizarAnalisis(data, contenido) {
+    let h='';
+    h+='<div class="seccion"><h4>📋 Descripción del Problema</h4><p>'+(data.reporte||'').replace(/\n/g,'<br>')+'</p></div>';
+    if(data.casosRelacionados&&data.casosRelacionados.length>0){
+        h+='<div class="seccion" style="border-left-color:#2980b9"><h4>📂 Casos Anteriores Similares</h4>';
+        h+='<table style="width:100%;font-size:.72rem;border-collapse:collapse;margin-top:8px"><thead><tr><th style="padding:6px 8px;background:#f0f4f8;border:1px solid #dde1e6;font-size:.65rem">Caso</th><th style="padding:6px 8px;background:#f0f4f8;border:1px solid #dde1e6;font-size:.65rem">Problema</th></tr></thead><tbody>';
+        data.casosRelacionados.forEach(c=>{h+='<tr><td style="padding:6px 8px;border:1px solid #dde1e6"><a href="https://jirasegurosbolivar.atlassian.net/browse/'+c.key+'" target="_blank">'+c.key+'</a></td><td style="padding:6px 8px;border:1px solid #dde1e6">'+(c.resumen||c.desc||'')+'</td></tr>';});
+        h+='</tbody></table></div>';
+    }
+    if(data.causaRaiz){
+        h+='<div class="seccion" style="border-left-color:#dc3545"><h4>🔍 Causa Raíz</h4><p>'+data.causaRaiz.replace(/\n/g,'<br>')+'</p></div>';
+    }
+    if(data.analisis){
+        h+='<div class="seccion"><h4>🔬 Análisis Técnico</h4><p>'+data.analisis.replace(/\n/g,'<br>')+'</p></div>';
+    }
+    h+='<div class="seccion solucion"><h4>✅ Solución Propuesta</h4>';
+    if(data.solucionInmediata){h+='<p><strong>Inmediata (operativa):</strong><br>'+data.solucionInmediata.replace(/\n/g,'<br>')+'</p>';}
+    if(data.solucionDefinitiva){h+='<p style="margin-top:10px"><strong>Definitiva (desarrollo):</strong><br>'+data.solucionDefinitiva.replace(/\n/g,'<br>')+'</p>';}
+    h+='</div>';
+    if(data.prevencion){
+        h+='<div class="seccion" style="border-left-color:#fd7e14"><h4>🛡️ Prevención</h4><p>'+data.prevencion.replace(/\n/g,'<br>')+'</p></div>';
+    }
+    if(data.runbooks&&data.runbooks.length>0){
+        h+='<div class="seccion" style="border-left-color:#6f42c1"><h4>📖 Runbooks Relacionados</h4>';
+        data.runbooks.forEach(rb=>{h+='<p><a href="'+rb.url+'" target="_blank">'+rb.title+'</a></p>';});
+        h+='</div>';
+    }
+    h+='<div class="seccion" style="border-left-color:var(--accent)"><h4>📊 Contexto</h4><p style="font-size:.72rem">Riesgo: <strong>'+data.riesgo+'</strong></p></div>';
+    // Botón documentar en Jira
+    h+='<div style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">';
+    h+='<button onclick="documentarEnJira()" style="padding:12px 28px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s" onmouseover="this.style.background=\'#004d32\'" onmouseout="this.style.background=\'var(--primary)\'">📝 Documentar en Jira</button>';
+    h+='<p style="font-size:.65rem;color:var(--muted);margin-top:8px">Agrega este análisis como comentario en el ticket</p>';
+    h+='</div>';
+    contenido.innerHTML=h;
+    // Guardar datos del análisis actual para documentar
+    window._analisisActual = data;
+}
+function cerrarModal(){document.getElementById('modalAnalisis').classList.remove('show');}
+
+function documentarEnJira() {
+    const casoId = document.getElementById('modalCasoId').querySelector('a').textContent.split(' ')[0];
+    const data = window._analisisActual;
+    if(!data||!casoId){alert('No hay análisis para documentar');return;}
+
+    // Construir comentario en formato Markdown para Jira
+    let body = '## Análisis SRE — Equipo Especialistas N1\n\n---\n\n';
+    body += '### Descripción del Problema\n\n' + (data.reporte||'') + '\n\n---\n\n';
+    if(data.casosRelacionados&&data.casosRelacionados.length>0){
+        body += '### Casos Anteriores Similares\n\n| Caso | Problema |\n|------|----------|\n';
+        data.casosRelacionados.forEach(c=>{body += '| '+c.key+' | '+(c.resumen||'')+' |\n';});
+        body += '\n---\n\n';
+    }
+    if(data.causaRaiz) body += '### Causa Raíz\n\n' + data.causaRaiz + '\n\n---\n\n';
+    if(data.analisis) body += '### Análisis Técnico\n\n' + data.analisis + '\n\n---\n\n';
+    body += '### Solución Propuesta\n\n';
+    if(data.solucionInmediata) body += '**Inmediata (operativa):**\n' + data.solucionInmediata + '\n\n';
+    if(data.solucionDefinitiva) body += '**Definitiva (desarrollo):**\n' + data.solucionDefinitiva + '\n\n---\n\n';
+    if(data.prevencion) body += '### Prevención\n\n' + data.prevencion + '\n\n---\n\n';
+    body += '*Análisis generado por Dashboard SRE N1 — ' + new Date().toLocaleDateString('es-CO') + '*';
+
+    // Enviar al server
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Documentando...';
+
+    fetch('https://dashboard-n1-sre.onrender.com/documentar', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({casoId: casoId, comentario: body})
+    }).then(r=>{
+        if(!r.ok) throw new Error('Error '+r.status);
+        return r.json();
+    }).then(resp=>{
+        btn.textContent = '✅ Documentado en Jira';
+        btn.style.background = '#28a745';
+        setTimeout(()=>{btn.textContent='📝 Documentar en Jira';btn.style.background='var(--primary)';btn.disabled=false;},3000);
+    }).catch(err=>{
+        btn.textContent = '❌ Error — Server no disponible';
+        btn.style.background = '#dc3545';
+        setTimeout(()=>{btn.textContent='📝 Documentar en Jira';btn.style.background='var(--primary)';btn.disabled=false;},3000);
+    });
+}
+
+// Add buttons dynamically
+document.addEventListener('DOMContentLoaded',function(){
+    document.querySelectorAll('#ticketBody tr').forEach(row=>{
+        const cells=row.querySelectorAll('td');
+        if(cells.length>=2){
+            const link=cells[0].querySelector('a');
+            const id=link?link.textContent.trim():'';
+            const res=cells[1]?cells[1].textContent.trim():'';
+            const desc=cells[2]?cells[2].textContent.trim():'';
+            const td=cells[8]||document.createElement('td');
+            td.innerHTML='<button class="btn-analisis" onclick="analizarCaso(\''+id+'\',\''+res.replace(/'/g,"\\'")+'\'  ,\''+desc.replace(/'/g,"\\'")+'\')">&nbsp;Analizar</button>';
+            if(!cells[8])row.appendChild(td);
+        }
+    });
+});
+</script>
+</body>
+</html>
